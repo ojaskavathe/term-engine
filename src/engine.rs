@@ -40,17 +40,16 @@ impl Engine {
 
             while now.elapsed() < frame_time {
                 // input polling and processing
-                // if let Some(command) = input::process_input(frame_time - now.elapsed()) {
-                //     match command {
-                //         Command::Quit => {
-                //             done = true;
-                //             break;
-                //         },
-                //     };
-                // }
-
-                if let Some((x, y)) = input::get_direction(frame_time - now.elapsed()) {
-                    self.render_pos(x, y);
+                if let Some(command) = input::process_input(frame_time - now.elapsed()) {
+                    match command {
+                        Command::Quit => {
+                            done = true;
+                            break;
+                        },
+                        Command::Look(x, y) => {
+                            self.render_pos(x, y);
+                        }
+                    };
                 }
             }
         }
