@@ -3,7 +3,7 @@ use crate::command::Command;
 
 use std::time::{Duration, Instant};
 
-use crossterm::{terminal, cursor, style, ExecutableCommand};
+use crossterm::{terminal, cursor, style, event, ExecutableCommand};
 
 use std::io::Stdout;
 
@@ -12,6 +12,8 @@ pub struct Engine {
     og_term_size: (u16, u16),
     width: u16,
     height: u16,
+
+    light_pos: (u16, u16),
 }
 
 impl Engine {
@@ -21,14 +23,14 @@ impl Engine {
             stdout,
             og_term_size,
             width,
-            height
+            height,
+            light_pos: (5, 5),
         }
     }
 
     pub fn run(&mut self) {
         let mut done = false;
         let frame_time = Duration::from_millis(30);
-
 
         self.prepare_ui();
 
@@ -38,13 +40,17 @@ impl Engine {
 
             while now.elapsed() < frame_time {
                 // input polling and processing
-                if let Some(command) = input::process_input(frame_time - now.elapsed()) {
-                    match command {
-                        Command::Quit => {
-                            done = true;
-                            break;
-                        }
-                    }
+                // if let Some(command) = input::process_input(frame_time - now.elapsed()) {
+                //     match command {
+                //         Command::Quit => {
+                //             done = true;
+                //             break;
+                //         },
+                //     };
+                // }
+
+                if let Some((x, y)) = input::get_direction(frame_time - now.elapsed()) {
+                    self.render_pos(x, y);
                 }
             }
         }
@@ -53,6 +59,24 @@ impl Engine {
     }
 
     fn render(&mut self) {
+        self.render_boundary();
+
+        self.render_light();
+    }
+
+    fn render_pos(&mut self, x: u16, y: u16) {
+        self.stdout
+            .execute(cursor::MoveTo(10, 5)).unwrap()
+            .execute(style::Print(format!("x: {}, y: {}", x, y))).unwrap();
+    }
+
+    fn render_light(&mut self) {
+        self.stdout
+            .execute(cursor::MoveTo(self.light_pos.0, self.light_pos.1)).unwrap()
+            .execute(style::Print("")).unwrap();
+    }
+    
+    fn render_boundary(&mut self) {
         for y in 0..self.height + 2 {
             self.stdout
                 .execute(cursor::MoveTo(0, y)).unwrap()
@@ -83,8 +107,9 @@ impl Engine {
     fn prepare_ui(&mut self) {
         terminal::enable_raw_mode().unwrap();
         self.stdout
-            .execute(terminal::SetSize(self.width, self.height)).unwrap()
+            .execute(terminal::SetSize(self.width + 3, self.height + 3)).unwrap()
             .execute(terminal::Clear(terminal::ClearType::All)).unwrap()
+            .execute(event::EnableMouseCapture).unwrap()
             .execute(cursor::Hide).unwrap();
     }
 
