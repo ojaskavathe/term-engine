@@ -1,29 +1,28 @@
 use crate::input;
 use crate::command::Command;
+use crate::vec::Vec2;
+use crate::surface::{Surface, Element};
 
 use std::time::{Duration, Instant};
+use std::io::{self, BufWriter, Write};
 
-use crossterm::{terminal, cursor, style, event, ExecutableCommand};
-
-use std::io::Stdout;
+use crossterm::{terminal, cursor, style, event, QueueableCommand};
 
 pub struct Engine {
-    stdout: Stdout,
-    og_term_size: (u16, u16),
-    width: u16,
-    height: u16,
+    writer: BufWriter<io::Stdout>,
+    surface: Surface,
 
     light_pos: (u16, u16),
 }
 
 impl Engine {
-    pub fn new(stdout: Stdout, width: u16, height: u16) -> Self {
-        let og_term_size: (u16, u16) = terminal::size().unwrap();
+    pub fn new() -> Self {
         Self {
-            stdout,
-            og_term_size,
-            width,
-            height,
+            writer: BufWriter::with_capacity(
+                (size().x * size().y) as usize * 50,
+                io::stdout()
+            ),
+            surface: Surface::new(size()),
             light_pos: (5, 5),
         }
     }
@@ -47,11 +46,13 @@ impl Engine {
                             break;
                         },
                         Command::Look(x, y) => {
-                            self.render_pos(x, y);
+                            // self.render_pos(x, y);
                         }
                     };
                 }
             }
+
+            self.writer.flush().unwrap();
         }
 
         self.restore_ui();
@@ -60,64 +61,78 @@ impl Engine {
     fn render(&mut self) {
         self.render_boundary();
 
-        self.render_light();
+        self.writer
+            .queue(cursor::MoveTo(0, 0)).unwrap();
+
+        for element in self.surface.state().iter() {
+            self.writer
+                .queue(style::Print(element.value)).unwrap();
+        }
+
+        // self.render_light();
+        self.writer.flush().unwrap();
     }
 
     fn render_pos(&mut self, x: u16, y: u16) {
-        self.stdout
-            .execute(cursor::MoveTo(10, 5)).unwrap()
-            .execute(style::Print(format!("x: {}, y: {}", x, y))).unwrap();
+        self.writer
+            .queue(cursor::MoveTo(10, 5)).unwrap()
+            .queue(style::Print(format!("x: {}, y: {}      ", x, y))).unwrap();
     }
 
     fn render_light(&mut self) {
-        self.stdout
-            .execute(cursor::MoveTo(self.light_pos.0, self.light_pos.1)).unwrap()
-            .execute(style::Print("")).unwrap();
+        self.writer
+            .queue(cursor::MoveTo(self.light_pos.0, self.light_pos.1)).unwrap()
+            .queue(style::Print("")).unwrap();
     }
     
     fn render_boundary(&mut self) {
-        for y in 0..self.height + 2 {
-            self.stdout
-                .execute(cursor::MoveTo(0, y)).unwrap()
-                .execute(style::Print("║")).unwrap()
-                .execute(cursor::MoveTo(self.width + 1, y)).unwrap()
-                .execute(style::Print("║")).unwrap();
+        let size = self.surface.size();
+        let mut elem: &mut Element; 
+        for y in 0..self.surface.size().y {
+            elem = self.surface.elem_mut(Vec2{ x: 0, y }).unwrap();
+            elem.value = '║';
+            elem = self.surface.elem_mut(Vec2{ x: self.surface.size().x - 1, y }).unwrap();
+            elem.value = '║';
         }
 
-        for x in 0..self.width + 2 {
-            self.stdout
-                .execute(cursor::MoveTo(x, 0)).unwrap()
-                .execute(style::Print("═")).unwrap()
-                .execute(cursor::MoveTo(x, self.height + 1)).unwrap()
-                .execute(style::Print("═")).unwrap();
+        for x in 0..self.surface.size().x {
+            elem = self.surface.elem_mut(Vec2{ x, y: 0 }).unwrap();
+            elem.value = '═';
+            elem = self.surface.elem_mut(Vec2{ x, y: self.surface.size().y - 1 }).unwrap();
+            elem.value = '═';
         }
 
-        self.stdout
-            .execute(cursor::MoveTo(0, 0)).unwrap()
-            .execute(style::Print("╔")).unwrap()
-            .execute(cursor::MoveTo(self.width + 1, 0)).unwrap()
-            .execute(style::Print("╗")).unwrap()
-            .execute(cursor::MoveTo(self.width + 1, self.height + 1)).unwrap()
-            .execute(style::Print("╝")).unwrap()
-            .execute(cursor::MoveTo(0, self.height + 1)).unwrap()
-            .execute(style::Print("╚")).unwrap();
+        self.surface.elem_mut(Vec2{ x: 0, y: 0 }).unwrap().value = '╔';
+        self.surface.elem_mut(Vec2{ x: 0, y: size.y - 1 }).unwrap().value = '╚';
+        self.surface.elem_mut(Vec2{ x: size.x - 1, y: size.y - 1 }).unwrap().value = '╝';
+        self.surface.elem_mut(Vec2{ x: size.x - 1, y: 0 }).unwrap().value = '╗';
     }
 
     fn prepare_ui(&mut self) {
         terminal::enable_raw_mode().unwrap();
-        self.stdout
-            .execute(terminal::SetSize(self.width + 3, self.height + 3)).unwrap()
-            .execute(terminal::Clear(terminal::ClearType::All)).unwrap()
-            .execute(event::EnableMouseCapture).unwrap()
-            .execute(cursor::Hide).unwrap();
+        self.writer
+            .queue(terminal::EnterAlternateScreen).unwrap()
+            .queue(terminal::Clear(terminal::ClearType::All)).unwrap()
+            .queue(event::EnableMouseCapture).unwrap()
+            .queue(cursor::Hide).unwrap();
+
+        self.writer.flush().unwrap();
     }
 
     fn restore_ui(&mut self) {
-        self.stdout
-            .execute(terminal::SetSize(self.og_term_size.0, self.og_term_size.1)).unwrap()
-            .execute(terminal::Clear(terminal::ClearType::All)).unwrap()
-            .execute(cursor::Show).unwrap()
-            .execute(style::ResetColor).unwrap();
+        self.writer
+            .queue(terminal::Clear(terminal::ClearType::All)).unwrap()
+            .queue(event::DisableMouseCapture).unwrap()
+            .queue(cursor::Show).unwrap()
+            .queue(style::ResetColor).unwrap()
+            .queue(terminal::LeaveAlternateScreen).unwrap();
         terminal::disable_raw_mode().unwrap();
+
+        self.writer.flush().unwrap();
     }
+}
+
+fn size() -> Vec2 {
+    let (x, y) = terminal::size().unwrap();
+    Vec2::new(x, y)
 }

@@ -10,17 +10,6 @@ fn poll_inputs(timeout: Duration) -> Option<event::Event> {
     None
 }
 
-fn poll_mouse(timeout: Duration) -> Option<event::MouseEvent> {
-    if event::poll(timeout).ok()? {
-        let ev = event::read().ok()?;
-        if let event::Event::Mouse(mouse_event) = ev {
-            return Some(mouse_event);
-        }
-    }
-
-    None
-}
-
 pub fn process_input(timeout: Duration) -> Option<Command> {
     let ev = poll_inputs(timeout)?;
 
@@ -38,13 +27,5 @@ pub fn process_input(timeout: Duration) -> Option<Command> {
             }
         },
         _ => None
-    }
-}
-
-pub fn get_direction(timeout: Duration) -> Option<(u16, u16)> {
-    let mouse_event = poll_mouse(timeout)?;
-    match mouse_event.kind {
-        event::MouseEventKind::Drag(event::MouseButton::Left) => Some((mouse_event.column, mouse_event.row)),
-        _ => None    
     }
 }
