@@ -46,7 +46,7 @@ impl Engine {
                             break;
                         },
                         Command::Look(x, y) => {
-                            // self.render_pos(x, y);
+                            self.render_pos(x, y);
                         }
                     };
                 }
@@ -69,14 +69,15 @@ impl Engine {
                 .queue(style::Print(element.value)).unwrap();
         }
 
-        // self.render_light();
+        self.render_light();
         self.writer.flush().unwrap();
     }
 
     fn render_pos(&mut self, x: u16, y: u16) {
-        self.writer
-            .queue(cursor::MoveTo(10, 5)).unwrap()
-            .queue(style::Print(format!("x: {}, y: {}      ", x, y))).unwrap();
+        let out = format!("x: {}, y: {}      ", x, y);
+        self.surface.print_str(&out, 1, 1);
+        
+        self.writer.flush().unwrap();
     }
 
     fn render_light(&mut self) {
