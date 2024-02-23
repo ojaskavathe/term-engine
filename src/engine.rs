@@ -23,13 +23,13 @@ impl Engine {
                 io::stdout()
             ),
             surface: Surface::new(size()),
-            light_pos: (5, 5),
+            light_pos: (20, 10),
         }
     }
 
     pub fn run(&mut self) {
         let mut done = false;
-        let frame_time = Duration::from_millis(30);
+        let frame_time = Duration::from_millis(16);
 
         self.prepare_ui();
 
@@ -74,10 +74,12 @@ impl Engine {
     }
 
     fn render_pos(&mut self, x: u16, y: u16) {
-        let out = format!("x: {}, y: {}      ", x, y);
+        self.surface.clear();
+
+        let out = format!("x: {}, y: {}", x, y);
         self.surface.print_str(&out, 1, 1);
-        
-        self.writer.flush().unwrap();
+
+        self.surface.draw_line(Vec2::new(20, 10), Vec2::new(x, y), Element{ value: '#' });
     }
 
     fn render_light(&mut self) {
@@ -87,6 +89,7 @@ impl Engine {
     }
     
     fn render_boundary(&mut self) {
+        // Bresenham 
         let size = self.surface.size();
         let mut elem: &mut Element; 
         for y in 0..self.surface.size().y {
