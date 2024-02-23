@@ -29,27 +29,34 @@ impl Engine {
 
     pub fn run(&mut self) {
         let mut done = false;
-        let frame_time = Duration::from_millis(16);
+        let frame_time = Duration::from_millis(8);
+        let mut dt;
+        let mut now;
 
         self.prepare_ui();
 
         while !done {
-            let now = Instant::now();
+            now = Instant::now();
             self.render();
 
-            while now.elapsed() < frame_time {
+            dt = now.elapsed();
+            if let Some(remaining) = frame_time.checked_sub(dt) {
                 // input polling and processing
-                if let Some(command) = input::process_input(frame_time - now.elapsed()) {
+                if let Some(command) = input::process_input(remaining) {
                     match command {
                         Command::Quit => {
                             done = true;
-                            break;
                         },
                         Command::Look(x, y) => {
                             self.render_pos(x, y);
                         }
                     };
                 }
+            }
+
+            dt = now.elapsed();
+            if let Some(remaining) = frame_time.checked_sub(dt) {
+                std::thread::sleep(remaining);
             }
 
             self.writer.flush().unwrap();
