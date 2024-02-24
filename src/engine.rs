@@ -2,6 +2,7 @@ use crate::input;
 use crate::command::Command;
 use crate::vec::Vec2;
 use crate::surface::{Surface, Element};
+use crate::noise::perlin_noise;
 
 use std::time::{Duration, Instant};
 use std::io::{self, BufWriter, Write};
@@ -34,6 +35,7 @@ impl Engine {
         let mut now;
 
         self.prepare_ui();
+        self.render_noise();
 
         while !done {
             now = Instant::now();
@@ -86,13 +88,45 @@ impl Engine {
         let out = format!("x: {}, y: {}", x, y);
         self.surface.print_str(&out, 1, 1);
 
-        self.surface.draw_line(Vec2::new(20, 10), Vec2::new(x, y), Element{ value: '#' });
+        // self.surface.draw_line(Vec2::new(20, 10), Vec2::new(x, y), Element{ value: '#' });
     }
 
     fn render_light(&mut self) {
         self.writer
             .queue(cursor::MoveTo(self.light_pos.0, self.light_pos.1)).unwrap()
             .queue(style::Print("")).unwrap();
+    }
+
+    fn render_noise(&mut self) {
+        let size = size();
+        for x in (1..size.x).step_by(2) {
+            for y in 1..size.y {
+                let mut n = 0.0;
+                let mut a = 1.0;
+                let mut f = 0.005;
+
+                for _o in 0..8 {
+                    let v = a * perlin_noise(x as f64 * f, y as f64 * f);
+                    n += v;
+                    
+                    a *= 0.5;
+                    f *= 2.0;
+                };
+
+                n += 1.0;
+                n *= 0.5;
+
+                if n < 0.5 { 
+                    self.surface.set(Vec2{x, y}, Element{ value:' ' });
+                    self.surface.set(Vec2{x:x+1, y}, Element{ value:' ' });
+                } else if n < 0.9 {
+                    self.surface.set(Vec2{x, y}, Element{ value:'2' });
+                    self.surface.set(Vec2{x:x+1, y}, Element{ value:'2' });
+                } else {
+                    self.surface.set(Vec2{x:x+1, y}, Element{ value:'3' });
+                }
+            }
+        }
     }
     
     fn render_boundary(&mut self) {

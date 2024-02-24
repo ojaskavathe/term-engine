@@ -99,3 +99,13 @@ impl Neg for Vec2 {
         }
     }
 }
+
+impl Vec2 {
+    pub fn len(&self) -> f64 {
+        (((self.x * self.x) + (self.y * self.y)) as f64).sqrt()
+    }
+
+    pub fn dot(&self, v: Vec2) -> i16 {
+        (self.x * v.x) + (self.y + v.y)
+    }
+}

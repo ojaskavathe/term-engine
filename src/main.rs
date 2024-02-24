@@ -3,6 +3,7 @@ mod engine;
 mod input;
 mod vec;
 mod surface;
+mod noise;
 
 use engine::Engine;
 
