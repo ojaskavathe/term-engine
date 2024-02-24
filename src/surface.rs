@@ -67,7 +67,7 @@ impl Surface {
     }
 
     pub fn draw_line(&mut self, p1: Vec2, p2: Vec2, val: Element) {
-        
+        // Bresenham
         let mut p: Vec2;
         let (mut dx, mut dy): (i16, i16);
         let (incx, incy): (i16, i16);

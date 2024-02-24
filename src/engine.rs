@@ -116,10 +116,21 @@ impl Engine {
                 n += 1.0;
                 n *= 0.5;
 
-                if n < 0.5 { 
+                let mut d = if size.x < size.y { size.x as f64 } else { size.y as f64 };
+                d = (d * d) / 4.0;
+                let dx = (size.x as f64 / 2.0) - x as f64;
+                let dy = (size.y as f64 / 2.0) - y as f64;
+                let dsqr = (dx * dx * 0.1) + (dy * dy);
+                let outer_scaling = 1.0 - (1.0 / d) * dsqr;
+                n *= outer_scaling;
+
+                if n < 0.3 { 
                     self.surface.set(Vec2{x, y}, Element{ value:' ' });
                     self.surface.set(Vec2{x:x+1, y}, Element{ value:' ' });
-                } else if n < 0.9 {
+                } else if n < 0.5 {
+                    self.surface.set(Vec2{x, y}, Element{ value:'1' });
+                    self.surface.set(Vec2{x:x+1, y}, Element{ value:'1' });
+                } else if n < 0.8 {
                     self.surface.set(Vec2{x, y}, Element{ value:'2' });
                     self.surface.set(Vec2{x:x+1, y}, Element{ value:'2' });
                 } else {
@@ -130,7 +141,6 @@ impl Engine {
     }
     
     fn render_boundary(&mut self) {
-        // Bresenham 
         let size = self.surface.size();
         let mut elem: &mut Element; 
         for y in 0..self.surface.size().y {
