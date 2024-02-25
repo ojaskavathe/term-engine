@@ -13,6 +13,7 @@ pub struct Engine {
     writer: BufWriter<io::Stdout>,
     surface: Surface,
 
+    height_map: Surface,
     light_pos: (u16, u16),
 }
 
@@ -24,6 +25,7 @@ impl Engine {
                 io::stdout()
             ),
             surface: Surface::new(size()),
+            height_map: Surface::new(size()),
             light_pos: (20, 10),
         }
     }
@@ -35,11 +37,12 @@ impl Engine {
         let mut now;
 
         self.prepare_ui();
-        self.render_noise();
+        self.generate_heightmap();
+
+        self.render_heightmap();
 
         while !done {
             now = Instant::now();
-            self.render();
 
             dt = now.elapsed();
             if let Some(remaining) = frame_time.checked_sub(dt) {
@@ -73,37 +76,48 @@ impl Engine {
         self.writer
             .queue(cursor::MoveTo(0, 0)).unwrap();
 
+        // let last_bg = self.surface.dd
+
         for element in self.surface.state().iter() {
             self.writer
+                .queue(style::SetBackgroundColor(element.background)).unwrap()
                 .queue(style::Print(element.value)).unwrap();
         }
 
-        self.render_light();
+        self.writer.flush().unwrap();
+    }
+
+    fn render_heightmap(&mut self) {
+        self.writer
+            .queue(cursor::MoveTo(0, 0)).unwrap();
+
+        for element in self.height_map.state().iter() {
+            self.writer
+                .queue(style::SetBackgroundColor(element.background)).unwrap()
+                .queue(style::Print(element.value)).unwrap();
+        }
+
         self.writer.flush().unwrap();
     }
 
     fn render_pos(&mut self, x: u16, y: u16) {
-        self.surface.clear();
-
-        let out = format!("x: {}, y: {}", x, y);
+        let out = format!("x: {}, y: {}    ", x, y);
         self.surface.print_str(&out, 1, 1);
 
+        // set light
+        // self.surface.set(Vec2::new(x, y), Element{ value: '☼', background: style::Color::Black });
+
         // self.surface.draw_line(Vec2::new(20, 10), Vec2::new(x, y), Element{ value: '#' });
+        self.writer.flush().unwrap();
     }
 
-    fn render_light(&mut self) {
-        self.writer
-            .queue(cursor::MoveTo(self.light_pos.0, self.light_pos.1)).unwrap()
-            .queue(style::Print("")).unwrap();
-    }
-
-    fn render_noise(&mut self) {
+    fn generate_heightmap(&mut self) {
         let size = size();
         for x in (1..size.x).step_by(2) {
             for y in 1..size.y {
                 let mut n = 0.0;
                 let mut a = 1.0;
-                let mut f = 0.005;
+                let mut f = 0.001;
 
                 for _o in 0..8 {
                     let v = a * perlin_noise(x as f64 * f, y as f64 * f);
@@ -125,16 +139,17 @@ impl Engine {
                 n *= outer_scaling;
 
                 if n < 0.3 { 
-                    self.surface.set(Vec2{x, y}, Element{ value:' ' });
-                    self.surface.set(Vec2{x:x+1, y}, Element{ value:' ' });
-                } else if n < 0.5 {
-                    self.surface.set(Vec2{x, y}, Element{ value:'1' });
-                    self.surface.set(Vec2{x:x+1, y}, Element{ value:'1' });
-                } else if n < 0.8 {
-                    self.surface.set(Vec2{x, y}, Element{ value:'2' });
-                    self.surface.set(Vec2{x:x+1, y}, Element{ value:'2' });
+                    self.height_map.set(Vec2{x, y}, Element{ value:' ', background: style::Color::Rgb{r: 0, g: 105, b: 148}});
+                    self.height_map.set(Vec2{x:x+1, y}, Element{ value:' ', background: style::Color::Rgb{r: 0, g: 105, b: 148} });
+                } else if n < 0.4 {
+                    self.height_map.set(Vec2{x, y}, Element{ value:' ', background: style::Color::Rgb{r: 194, g: 174, b: 128} });
+                    self.height_map.set(Vec2{x:x+1, y}, Element{ value:' ', background: style::Color::Rgb{r: 194, g: 174, b: 128} });
+                } else if n < 0.55 {
+                    self.height_map.set(Vec2{x, y}, Element{ value:' ', background: style::Color::Rgb{r: 2, g: 48, b: 32} });
+                    self.height_map.set(Vec2{x:x+1, y}, Element{ value:' ', background: style::Color::Rgb{r: 2, g: 48, b: 32} });
                 } else {
-                    self.surface.set(Vec2{x:x+1, y}, Element{ value:'3' });
+                    self.height_map.set(Vec2{x, y}, Element{ value:' ', background: style::Color::White });
+                    self.height_map.set(Vec2{x:x+1, y}, Element{ value:' ', background: style::Color::White });
                 }
             }
         }
@@ -167,7 +182,7 @@ impl Engine {
         terminal::enable_raw_mode().unwrap();
         self.writer
             .queue(terminal::EnterAlternateScreen).unwrap()
-            .queue(terminal::Clear(terminal::ClearType::All)).unwrap()
+            .queue(style::ResetColor).unwrap()
             .queue(event::EnableMouseCapture).unwrap()
             .queue(cursor::Hide).unwrap();
 

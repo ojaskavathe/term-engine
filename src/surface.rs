@@ -1,10 +1,13 @@
 use crate::vec::Vec2;
+use crossterm::style;
 
 #[derive(Clone, Copy)]
 pub struct Element {
-    pub value: char
+    pub value: char,
+    pub background: style::Color,
 }
 
+#[derive(Clone)]
 pub struct Surface {
     dim: Vec2,
     data: Vec<Element>,
@@ -13,28 +16,24 @@ pub struct Surface {
 impl Surface {
     pub fn new(dim: Vec2) -> Self {
         let mut data = Vec::new();
-        data.resize((dim.x * dim.y) as usize, Element { value: ' ' });
-        Self {
-            dim,
-            data
-        }
+        data.resize((dim.x * dim.y) as usize, Element { value: ' ', background: style::Color::Blue });
+        Self { dim, data }
     }
 
     pub fn contains(&self, pos: Vec2) -> bool {
-        pos.x < self.dim.x &&
-        pos.y < self.dim.y
+        pos.x < self.dim.x && pos.y < self.dim.y
     }
 
     pub fn elem(&self, pos: Vec2) -> Option<&Element> {
         if self.contains(pos) {
-            return Some(&self.data[( (pos.y * self.dim.x) + pos.x ) as usize])
+            return Some(&self.data[((pos.y * self.dim.x) + pos.x) as usize]);
         }
         None
     }
 
     pub fn elem_mut(&mut self, pos: Vec2) -> Option<&mut Element> {
         if self.contains(pos) {
-            return Some(&mut self.data[( (pos.y * self.dim.x) + pos.x ) as usize])
+            return Some(&mut self.data[((pos.y * self.dim.x) + pos.x) as usize]);
         }
         None
     }
@@ -46,8 +45,8 @@ impl Surface {
             Some(x) => {
                 *x = val;
                 Some(x)
-            },
-            None => None
+            }
+            None => None,
         }
     }
 
@@ -61,7 +60,12 @@ impl Surface {
 
     pub fn print_str(&mut self, s: &str, x: u16, y: u16) {
         for (i, c) in s.chars().enumerate() {
-            let elem = self.elem_mut(Vec2{ x:(x + i as u16) as i16, y:y as i16 }).unwrap();
+            let elem = self
+                .elem_mut(Vec2 {
+                    x: (x + i as u16) as i16,
+                    y: y as i16,
+                })
+                .unwrap();
             elem.value = c;
         }
     }
@@ -72,7 +76,7 @@ impl Surface {
         let (mut dx, mut dy): (i16, i16);
         let (incx, incy): (i16, i16);
         let mut balance: i16;
-   
+
         if p2.x > p1.x {
             dx = p2.x - p1.x;
             incx = 1;
@@ -80,7 +84,7 @@ impl Surface {
             dx = p1.x - p2.x;
             incx = -1
         }
-   
+
         if p2.y > p1.y {
             dy = p2.y - p1.y;
             incy = 1;
@@ -104,7 +108,7 @@ impl Surface {
                 }
                 balance += dy;
                 p.x += incx;
-            } 
+            }
             self.set(p, val).unwrap();
         }
 
@@ -121,12 +125,8 @@ impl Surface {
                 }
                 balance += dx;
                 p.y += incy;
-            } 
+            }
             self.set(p, val).unwrap();
         }
-    }
-
-    pub fn clear(&mut self) {
-        self.data.iter_mut().map(|x| *x = Element{ value: ' ' }).count();
     }
 }
